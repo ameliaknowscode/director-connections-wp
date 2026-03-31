@@ -1,0 +1,31 @@
+# WordPress core — not tracked, install separately
+/wp-admin/
+/wp-includes/
+/wp-*.php
+/index.php
+/xmlrpc.php
+/license.txt
+/readme.html
+
+# Uploads
+/wp-content/uploads/
+
+# WordPress config — contains DB credentials
+wp-config.php
+
+# Keep a sample config
+!wp-config-sample.php
+
+# Third-party plugins and themes — install separately
+/wp-content/plugins/*
+!/wp-content/plugins/director-connections/
+
+# Default themes
+/wp-content/themes/twenty*/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug log
+/wp-content/debug.log
