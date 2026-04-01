@@ -6,13 +6,10 @@
  * $selected_directors array of selected director objects
  * $actors             array of actor objects (id, name, nationality)
  * $films_by_actor     array [actor_id][director_id] => string[]
+ *
+ * JS state (_dcInitial, _dcMaxDirectors, dcForm) is set via wp_add_inline_script
+ * to avoid wptexturize corrupting inline expressions.
  */
-
-// Ensure at least 2 slots in the form.
-$initial = array_values( $ids );
-while ( count( $initial ) < 2 ) {
-    $initial[] = '';
-}
 ?>
 <div class="dc-wrap">
 
@@ -21,47 +18,32 @@ while ( count( $initial ) < 2 ) {
             Pick two or more directors to find every actor who appeared in at least one film by <em>each</em> of them.
         </p>
 
-        <form
-            method="GET"
-            action=""
-            x-data="dcForm(<?php echo wp_json_encode( array_map( 'strval', $initial ) ); ?>)"
-        >
-            <div class="dc-slots" x-ref="slots">
+        <form method="GET"
+              action="<?php echo esc_url( get_permalink() ); ?>"
+              data-initial="<?php echo esc_attr( wp_json_encode( array_map( 'strval', $initial ) ) ); ?>"
+              data-max="<?php echo count( $all_directors ); ?>"
+              x-data="dcForm()">
+            <input type="hidden" name="page_id" value="<?php echo get_the_ID(); ?>" />
+            <div class="dc-slots">
                 <template x-for="(val, idx) in directors" :key="idx">
                     <div class="dc-slot">
                         <label class="dc-slot-label" x-text="'Director ' + (idx + 1)"></label>
-                        <select
-                            :name="'directors[' + idx + ']'"
-                            x-model="directors[idx]"
-                            class="dc-select"
-                        >
+                        <select :name="'directors[' + idx + ']'" x-model="directors[idx]" class="dc-select">
                             <option value="">— Select a director —</option>
                             <?php foreach ( $all_directors as $dir ) : ?>
                             <option
                                 value="<?php echo esc_attr( (string) $dir->id ); ?>"
-                                x-show="!directors.some((v, j) => j !== idx && v === <?php echo wp_json_encode( (string) $dir->id ); ?>)"
+                                x-show="<?php echo esc_attr( '!directors.some((v,j) => j!==idx && v===' . wp_json_encode( (string) $dir->id ) . ')' ); ?>"
                             ><?php echo esc_html( $dir->name ); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <button
-                            type="button"
-                            class="dc-remove-btn"
-                            @click="remove(idx)"
-                            x-show="directors.length > 1"
-                            title="Remove"
-                            aria-label="Remove director"
-                        >&times;</button>
+                        <button type="button" class="dc-remove-btn" @click="remove(idx)" x-show="canRemove()">&times;</button>
                     </div>
                 </template>
             </div>
 
             <div class="dc-form-actions">
-                <button
-                    type="button"
-                    class="dc-btn dc-btn-secondary"
-                    @click="add()"
-                    x-show="directors.length < <?php echo count( $all_directors ); ?>"
-                >+ Add director</button>
+                <button type="button" class="dc-btn dc-btn-secondary" @click="add()" x-show="canAdd()">+ Add director</button>
                 <button type="submit" class="dc-btn dc-btn-primary">Find connections</button>
             </div>
         </form>
@@ -72,7 +54,7 @@ while ( count( $initial ) < 2 ) {
 
         <div class="dc-results-header">
             <h3 class="dc-results-title">
-                Actors in films by <?php echo esc_html( implode( ' &amp; ', array_column( $selected_directors, 'name' ) ) ); ?>
+                Actors in films by <?php echo esc_html( implode( ' & ', array_column( $selected_directors, 'name' ) ) ); ?>
             </h3>
             <?php if ( ! empty( $actors ) ) : ?>
             <p class="dc-results-count">
@@ -111,11 +93,7 @@ while ( count( $initial ) < 2 ) {
                             <td class="dc-films-cell">
                                 <?php
                                 $titles = $films_by_actor[ $actor->id ][ (string) $dir->id ] ?? array();
-                                if ( $titles ) {
-                                    echo esc_html( implode( ', ', $titles ) );
-                                } else {
-                                    echo '<span class="dc-dash">&mdash;</span>';
-                                }
+                                echo $titles ? esc_html( implode( ', ', $titles ) ) : '<span class="dc-dash">&mdash;</span>';
                                 ?>
                             </td>
                             <?php endforeach; ?>
@@ -131,13 +109,3 @@ while ( count( $initial ) < 2 ) {
     <?php endif; ?>
 
 </div>
-
-<script>
-function dcForm(initial) {
-    return {
-        directors: initial,
-        add()       { this.directors.push(''); },
-        remove(idx) { this.directors.splice(idx, 1); }
-    };
-}
-</script>

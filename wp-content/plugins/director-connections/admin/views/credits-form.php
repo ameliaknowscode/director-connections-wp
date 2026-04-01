@@ -3,44 +3,18 @@
 $is_edit   = ( 'edit' === $action && $credit_id > 0 );
 $credit    = $is_edit ? DC_Credits::find( $credit_id ) : null;
 $list_url  = add_query_arg( array( 'page' => 'dc-credits' ), admin_url( 'admin.php' ) );
+$error     = DC_Admin::get_error();
 
 if ( $is_edit && ! $credit ) {
     echo '<div class="wrap"><div class="notice notice-error"><p>Credit not found.</p></div></div>';
     return;
 }
 
-// Handle save
-if ( isset( $_POST['dc_save_credit'] ) ) {
-    check_admin_referer( 'dc_save_credit' );
+$sel_person_id      = $credit->person_id ?? 0;
+$sel_movie_id       = $credit->movie_id ?? 0;
+$sel_type_id        = $credit->type_id ?? 0;
+$sel_character_name = $credit->character_name ?? '';
 
-    $person_id      = absint( $_POST['person_id'] ?? 0 );
-    $movie_id       = absint( $_POST['movie_id'] ?? 0 );
-    $type_id        = absint( $_POST['type_id'] ?? 0 );
-    $character_name = sanitize_text_field( wp_unslash( $_POST['character_name'] ?? '' ) );
-
-    if ( ! $person_id || ! $movie_id || ! $type_id ) {
-        $error = 'Person, movie, and role are all required.';
-    } else {
-        $data = compact( 'person_id', 'movie_id', 'type_id', 'character_name' );
-
-        if ( $is_edit ) {
-            DC_Credits::update( $credit_id, $data );
-        } else {
-            DC_Credits::insert( $data );
-        }
-
-        wp_redirect( add_query_arg( array( 'page' => 'dc-credits', 'saved' => '1' ), admin_url( 'admin.php' ) ) );
-        exit;
-    }
-}
-
-// Populate field values (re-show posted values on error, otherwise existing record)
-$sel_person_id      = isset( $error ) ? absint( $_POST['person_id'] ?? 0 )   : ( $credit->person_id ?? 0 );
-$sel_movie_id       = isset( $error ) ? absint( $_POST['movie_id'] ?? 0 )    : ( $credit->movie_id ?? 0 );
-$sel_type_id        = isset( $error ) ? absint( $_POST['type_id'] ?? 0 )     : ( $credit->type_id ?? 0 );
-$sel_character_name = isset( $error ) ? sanitize_text_field( wp_unslash( $_POST['character_name'] ?? '' ) ) : ( $credit->character_name ?? '' );
-
-// Load dropdown options
 $people = DC_People::all( array( 'limit' => 9999 ) );
 $movies = DC_Movies::all( array( 'limit' => 9999 ) );
 $types  = DC_Credits::get_types();
@@ -49,13 +23,16 @@ $types  = DC_Credits::get_types();
     <h1><?php echo $is_edit ? 'Edit Credit' : 'Add Credit'; ?></h1>
     <a href="<?php echo esc_url( $list_url ); ?>">&larr; Back to Credits</a>
 
-    <?php if ( isset( $error ) ) : ?>
+    <?php if ( $error ) : ?>
         <div class="notice notice-error"><p><?php echo esc_html( $error ); ?></p></div>
     <?php endif; ?>
 
     <form method="post" class="dc-form">
         <?php wp_nonce_field( 'dc_save_credit' ); ?>
         <input type="hidden" name="dc_save_credit" value="1" />
+        <?php if ( $is_edit ) : ?>
+            <input type="hidden" name="credit_id" value="<?php echo (int) $credit_id; ?>" />
+        <?php endif; ?>
 
         <table class="form-table">
             <tr>
